@@ -1808,11 +1808,64 @@ void main() {
 
 #!SHADER: Fragment
 
+float ffh(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+
 void main() {
   vec2 uvOrigin = vUv;
   vec2 uv = (gl_FragCoord.xy - 0.5 * (resolution.xy - uResolution.xy)) / uResolution.xy;
   uv -= uUvParallax;
-  vec3 color = texture2D(tMap, clamp(uv, 0.0, 1.0)).rgb;
+  vec2 wv = clamp(uv * 0.94 + 0.03 + vec2(sin(time * 0.045 + uIndex) * 0.018, cos(time * 0.035) * 0.008), 0.0, 1.0);
+  vec3 color = texture2D(tMap, wv).rgb;
+  // --- war outside the window: fire flicker, explosions, flak, tracers, embers, blue searchlights
+  float fire = smoothstep(0.55, 0.0, uv.y) * (0.75 + 0.25 * sin(time * 6.1 + uv.x * 13.0) * sin(time * 2.3 + uv.x * 5.0));
+  color *= 0.82 + 0.28 * fire;
+  color += vec3(1.0, 0.38, 0.1) * fire * 0.16;
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k);
+    float ft = time * (0.55 + fk * 0.17) + fk * 3.7 + uIndex * 1.3;
+    float cell = floor(ft); float fr = fract(ft);
+    vec2 ep = vec2(0.08 + 0.84 * ffh(cell * 7.1 + fk * 13.0 + uIndex), 0.1 + 0.32 * ffh(cell * 3.3 + fk));
+    vec2 dd = (uv - ep) * vec2(1.82, 1.0);
+    float burst = exp(-fr * 6.0) * smoothstep(0.0, 0.04, fr);
+    float core = smoothstep(0.09 + fr * 0.12, 0.0, length(dd));
+    color += vec3(1.0, 0.62, 0.26) * core * burst * 2.2;
+    color += vec3(1.0, 0.5, 0.2) * burst * 0.06;
+  }
+  for (int k = 0; k < 5; k++) {
+    float fk = float(k);
+    float tt = time * (0.7 + 0.13 * fk) + fk * 0.61 + uIndex * 0.37;
+    float id = floor(tt); float ph = fract(tt);
+    float x0 = 0.05 + 0.9 * ffh(id * 1.7 + fk * 5.3 + uIndex * 2.0);
+    vec2 dir = normalize(vec2((ffh(id + fk) - 0.5) * 0.7, 1.0));
+    vec2 p = vec2(x0, -0.05) + dir * ph * 1.25;
+    vec2 d = uv - p;
+    float al = dot(d, dir);
+    float pe = length(d - dir * al) * 1.82;
+    float tr = smoothstep(0.0035, 0.0, pe) * smoothstep(-0.14, 0.0, al) * (1.0 - step(0.0, al));
+    vec3 tc = mod(fk, 2.0) < 0.5 ? vec3(1.0, 0.78, 0.38) : vec3(0.0, 0.64, 1.0);
+    color += tc * tr * 2.0;
+  }
+  for (int k = 0; k < 4; k++) {
+    float fk = float(k);
+    float ft = time * 0.9 + fk * 0.77 + uIndex * 0.5;
+    float cell = floor(ft); float fr = fract(ft);
+    vec2 fp = vec2(ffh(cell * 9.7 + fk * 3.1 + uIndex), 0.55 + 0.4 * ffh(cell * 2.9 + fk * 7.7));
+    float r = length((uv - fp) * vec2(1.82, 1.0));
+    color += vec3(1.0, 0.88, 0.7) * smoothstep(0.012, 0.0, r) * exp(-fr * 14.0) * 2.0;
+    color = mix(color, color * 0.55, smoothstep(0.035 + fr * 0.03, 0.0, r) * smoothstep(0.05, 0.2, fr) * (1.0 - fr) * 0.8);
+  }
+  for (int k = 0; k < 18; k++) {
+    float fk = float(k);
+    float sp = 0.05 + 0.08 * ffh(fk * 4.1);
+    vec2 ep2 = vec2(fract(ffh(fk * 1.9 + uIndex) + sin(time * 0.7 + fk) * 0.02), fract(ffh(fk * 8.3) + time * sp));
+    float r = length((uv - ep2) * vec2(1.82, 1.0));
+    vec3 ec = mod(fk, 3.0) < 0.5 ? vec3(0.0, 0.64, 1.0) : vec3(1.0, 0.55, 0.2);
+    color += ec * smoothstep(0.0045, 0.0, r) * (0.6 + 0.4 * sin(time * 7.0 + fk));
+  }
+  float bx = 0.5 + 0.42 * sin(time * 0.33 + uIndex * 2.1);
+  float beam = smoothstep(0.035, 0.0, abs((uv.x - bx) - (uv.y) * 0.35 * sin(time * 0.21 + uIndex))) * smoothstep(1.1, 0.0, uv.y);
+  color += vec3(0.0, 0.55, 1.0) * beam * 0.35;
+  color += vec3(0.0, 0.35, 1.0) * 0.06 * (1.0 - uv.y);
 
 
   float gradCentered =  abs(uv.x - 0.5) * 1.;
